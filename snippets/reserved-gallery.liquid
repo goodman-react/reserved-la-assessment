@@ -1,0 +1,139 @@
+{%- comment -%}
+  Product media gallery: swipeable scroll-snap slider on mobile, thumbnails
+  (left or below) or stacked grid on desktop.
+
+  Accepts:
+  - product: {Object} Product object
+  - section: {Object} Section object (uses gallery settings)
+  - featured_media: {Object} Media to show first
+{%- endcomment -%}
+
+{%- liquid
+  assign layout = section.settings.gallery_layout
+  assign media_count = product.media.size
+
+  case section.settings.image_ratio
+    when 'square'
+      assign ratio = 1
+    when 'tall'
+      assign ratio = 0.6667
+    when 'adapt'
+      assign ratio = product.featured_media.aspect_ratio | default: 0.75
+    else
+      assign ratio = 0.75
+  endcase
+
+  assign media_max_px = section.settings.content_width | times: section.settings.media_width | divided_by: 100
+  if layout == 'grid'
+    assign media_max_px = media_max_px | divided_by: 2
+    assign media_vw = section.settings.media_width | divided_by: 2
+  else
+    assign media_vw = section.settings.media_width
+  endif
+  assign sizes = '(min-width: 990px) min(' | append: media_vw | append: 'vw, ' | append: media_max_px | append: 'px), (min-width: 750px) calc(100vw - 80px), 100vw'
+-%}
+
+<div
+  class="rp-gallery rp-gallery--{{ layout }}"
+  style="--rp-ratio: {{ ratio }};"
+  data-gallery
+  data-layout="{{ layout }}"
+  data-zoom="{{ section.settings.enable_zoom }}"
+>
+  <div class="rp-gallery__viewport">
+    <ul
+      class="rp-gallery__track"
+      data-gallery-track
+      aria-label="{{ 'products.product.media.gallery_viewer' | t }}"
+      {% if media_count > 1 %}tabindex="0"{% endif %}
+    >
+      {%- for media in product.media -%}
+        {%- liquid
+          assign is_featured = false
+          if media.id == featured_media.id
+            assign is_featured = true
+          endif
+          assign media_alt = media.alt | default: product.title
+        -%}
+        <li
+          class="rp-gallery__slide{% if is_featured %} is-active{% endif %}"
+          data-media-id="{{ media.id }}"
+          aria-label="{{ forloop.index }} {{ 'general.slider.of' | t }} {{ media_count }}"
+        >
+          <div class="rp-gallery__media rp-gallery__media--{{ media.media_type }}">
+            {%- case media.media_type -%}
+              {%- when 'image' -%}
+                {%- liquid
+                  if is_featured
+                    assign loading = 'eager'
+                    assign priority = 'high'
+                  else
+                    assign loading = 'lazy'
+                    assign priority = 'auto'
+                  endif
+                -%}
+                {{
+                  media
+                  | image_url: width: 1800
+                  | image_tag:
+                    loading: loading,
+                    fetchpriority: priority,
+                    widths: '375, 550, 750, 1100, 1500, 1800',
+                    sizes: sizes,
+                    alt: media_alt,
+                    class: 'rp-gallery__img'
+                }}
+              {%- when 'video' -%}
+                {{ media | video_tag: controls: true, preload: 'none', image_size: '1100x', class: 'rp-gallery__video' }}
+              {%- when 'external_video' -%}
+                {{ media | external_video_tag: class: 'rp-gallery__iframe', loading: 'lazy' }}
+              {%- when 'model' -%}
+                {{ media | model_viewer_tag: class: 'rp-gallery__model' }}
+            {%- endcase -%}
+          </div>
+        </li>
+      {%- else -%}
+        <li class="rp-gallery__slide is-active">
+          <div class="rp-gallery__media">
+            {{ 'product-apparel-1' | placeholder_svg_tag: 'rp-gallery__placeholder' }}
+          </div>
+        </li>
+      {%- endfor -%}
+    </ul>
+
+    {%- if media_count > 1 -%}
+      <button type="button" class="rp-gallery__arrow rp-gallery__arrow--prev" data-gallery-prev aria-label="{{ 'general.slider.previous_slide' | t }}">
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+      <button type="button" class="rp-gallery__arrow rp-gallery__arrow--next" data-gallery-next aria-label="{{ 'general.slider.next_slide' | t }}">
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+      <div class="rp-gallery__counter" aria-hidden="true">
+        <span data-gallery-current>1</span> / {{ media_count }}
+      </div>
+    {%- endif -%}
+  </div>
+
+  {%- if media_count > 1 -%}
+    <ul class="rp-gallery__thumbs" data-gallery-thumbs>
+      {%- for media in product.media -%}
+        <li>
+          <button
+            type="button"
+            class="rp-gallery__thumb{% if media.id == featured_media.id %} is-active{% endif %}"
+            data-thumb
+            data-media-id="{{ media.id }}"
+            aria-label="{{ 'products.product.media.load_image' | t: index: forloop.index }}"
+            aria-current="{% if media.id == featured_media.id %}true{% else %}false{% endif %}"
+          >
+            {{
+              media.preview_image
+              | image_url: width: 240
+              | image_tag: loading: 'lazy', widths: '120, 240', sizes: '80px', alt: ''
+            }}
+          </button>
+        </li>
+      {%- endfor -%}
+    </ul>
+  {%- endif -%}
+</div>

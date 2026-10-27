@@ -181,13 +181,61 @@
     and section.settings.gallery_layout contains 'thumbnail'
     or section.settings.mobile_thumbnails == 'show'
   -%}
+    {%- liquid
+      assign thumbnail_limit = 4
+      assign first_thumbnail_media = featured_media | default: product.media.first
+
+      # Thumbnails follow the selected variant: its image plus the media that comes right after it,
+      # up to the next variant image. Falls back to shared (non-variant) media when there is no such group.
+      assign thumbnail_ids = ','
+      assign thumbnail_count = 0
+      assign in_variant_group = false
+      for media in product.media
+        if media.id == first_thumbnail_media.id
+          assign in_variant_group = true
+        elsif in_variant_group and variant_images contains media.src
+          break
+        endif
+        if in_variant_group
+          assign thumbnail_ids = thumbnail_ids | append: media.id | append: ','
+          assign thumbnail_count = thumbnail_count | plus: 1
+          if thumbnail_count >= thumbnail_limit
+            break
+          endif
+        endif
+      endfor
+
+      if thumbnail_count < 2 or variant_images.size == 0
+        for media in product.media
+          if thumbnail_count >= thumbnail_limit
+            break
+          endif
+          assign media_id_key = ',' | append: media.id | append: ','
+          if thumbnail_ids contains media_id_key or variant_images contains media.src
+            continue
+          endif
+          assign thumbnail_ids = thumbnail_ids | append: media.id | append: ','
+          assign thumbnail_count = thumbnail_count | plus: 1
+        endfor
+      endif
+
+      assign thumbnail_ids = thumbnail_ids | remove_first: ',' | split: ','
+      assign thumbnail_visible_count = thumbnail_count
+
+      if first_thumbnail_media.media_type == 'image'
+        assign thumbnail_ratio = first_thumbnail_media.preview_image.aspect_ratio | default: 1.0
+      else
+        assign thumbnail_ratio = first_thumbnail_media.aspect_ratio | default: 1.0
+      endif
+    -%}
     <slider-component
       id="GalleryThumbnails-{{ section.id }}"
-      class="thumbnail-slider slider-mobile-gutter quick-add-hidden{% unless section.settings.gallery_layout contains 'thumbnail' %} medium-hide large-up-hide{% endunless %}{% if section.settings.mobile_thumbnails != 'show' %} small-hide{% endif %}{% if media_count <= 3 %} thumbnail-slider--no-slide{% endif %}"
+      class="thumbnail-slider slider-mobile-gutter quick-add-hidden{% unless section.settings.gallery_layout contains 'thumbnail' %} medium-hide large-up-hide{% endunless %}{% if section.settings.mobile_thumbnails != 'show' %} small-hide{% endif %}{% if thumbnail_visible_count <= 3 %} thumbnail-slider--no-slide{% endif %}{% if section.settings.constrain_to_viewport and section.settings.media_fit == 'contain' %} thumbnail-slider--constrained{% endif %}"
+      style="--thumbnail-ratio: {{ thumbnail_ratio }};"
     >
       <button
         type="button"
-        class="slider-button slider-button--prev{% if media_count <= 3 %} small-hide{% endif %}{% if media_count <= 4 %} medium-hide large-up-hide{% endif %}"
+        class="slider-button slider-button--prev{% if thumbnail_visible_count <= 3 %} small-hide{% endif %}{% if thumbnail_visible_count <= 4 %} medium-hide large-up-hide{% endif %}"
         name="previous"
         aria-label="{{ 'general.slider.previous_slide' | t }}"
         aria-controls="GalleryThumbnails-{{ section.id }}"
@@ -208,66 +256,20 @@
           calc((100vw - 8rem) / 3)
         {%- endcapture -%}
 
-        {%- if featured_media != null -%}
+        {%- for thumbnail_media_id in thumbnail_ids -%}
           {%- liquid
-            capture media_index
-              if featured_media.media_type == 'model'
-                increment model_index
-              elsif featured_media.media_type == 'video' or featured_media.media_type == 'external_video'
-                increment video_index
-              elsif featured_media.media_type == 'image'
-                increment image_index
+            assign target_media_id = thumbnail_media_id | plus: 0
+            for candidate in product.media
+              if candidate.id == target_media_id
+                assign media = candidate
+                assign media_index = forloop.index
+                break
               endif
-            endcapture
-            assign media_index = media_index | plus: 1
+            endfor
           -%}
-          <li
-            id="Slide-Thumbnails-{{ section.id }}-0"
-            class="thumbnail-list__item slider__slide{% if section.settings.hide_variants and variant_images contains featured_media.src %} thumbnail-list_item--variant{% endif %}"
-            data-target="{{ section.id }}-{{ featured_media.id }}"
-            data-media-position="{{ media_index }}"
-          >
-            {%- capture thumbnail_id -%}
-              Thumbnail-{{ section.id }}-0
-            {%- endcapture -%}
-            <button
-              class="thumbnail global-media-settings global-media-settings--no-shadow"
-              aria-label="{%- if featured_media.media_type == 'image' -%}{{ 'products.product.media.load_image' | t: index: media_index }}{%- elsif featured_media.media_type == 'model' -%}{{ 'products.product.media.load_model' | t: index: media_index }}{%- elsif featured_media.media_type == 'video' or featured_media.media_type == 'external_video' -%}{{ 'products.product.media.load_video' | t: index: media_index }}{%- endif -%}"
-              aria-current="true"
-              aria-controls="GalleryViewer-{{ section.id }}"
-              aria-describedby="{{ thumbnail_id }}"
-            >
-              {{
-                featured_media.preview_image
-                | image_url: width: 416
-                | image_tag:
-                  loading: 'lazy',
-                  sizes: sizes,
-                  widths: '54, 74, 104, 162, 208, 324, 416',
-                  id: thumbnail_id,
-                  alt: featured_media.alt
-                | escape
-              }}
-            </button>
-          </li>
-        {%- endif -%}
-        {%- for media in product.media -%}
-          {%- unless media.id == product.selected_or_first_available_variant.featured_media.id -%}
-            {%- liquid
-              capture media_index
-                if media.media_type == 'model'
-                  increment model_index
-                elsif media.media_type == 'video' or media.media_type == 'external_video'
-                  increment video_index
-                elsif media.media_type == 'image'
-                  increment image_index
-                endif
-              endcapture
-              assign media_index = media_index | plus: 1
-            -%}
             <li
               id="Slide-Thumbnails-{{ section.id }}-{{ forloop.index }}"
-              class="thumbnail-list__item slider__slide{% if section.settings.hide_variants and variant_images contains media.src %} thumbnail-list_item--variant{% endif %}"
+              class="thumbnail-list__item slider__slide"
               data-target="{{ section.id }}-{{ media.id }}"
               data-media-position="{{ media_index }}"
             >
@@ -290,10 +292,7 @@
               <button
                 class="thumbnail global-media-settings global-media-settings--no-shadow"
                 aria-label="{%- if media.media_type == 'image' -%}{{ 'products.product.media.load_image' | t: index: media_index }}{%- elsif media.media_type == 'model' -%}{{ 'products.product.media.load_model' | t: index: media_index }}{%- elsif media.media_type == 'video' or media.media_type == 'external_video' -%}{{ 'products.product.media.load_video' | t: index: media_index }}{%- endif -%}"
-                {% if media == product.selected_or_first_available_variant.featured_media
-                  or product.selected_or_first_available_variant.featured_media == null
-                  and forloop.index == 1
-                %}
+                {% if forloop.first %}
                   aria-current="true"
                 {% endif %}
                 aria-controls="GalleryViewer-{{ section.id }}"
@@ -312,12 +311,11 @@
                 }}
               </button>
             </li>
-          {%- endunless -%}
         {%- endfor -%}
       </ul>
       <button
         type="button"
-        class="slider-button slider-button--next{% if media_count <= 3 %} small-hide{% endif %}{% if media_count <= 4 %} medium-hide large-up-hide{% endif %}"
+        class="slider-button slider-button--next{% if thumbnail_visible_count <= 3 %} small-hide{% endif %}{% if thumbnail_visible_count <= 4 %} medium-hide large-up-hide{% endif %}"
         name="next"
         aria-label="{{ 'general.slider.next_slide' | t }}"
         aria-controls="GalleryThumbnails-{{ section.id }}"

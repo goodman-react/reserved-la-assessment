@@ -1,0 +1,991 @@
+{%- liquid
+  assign current_variant = product.selected_or_first_available_variant
+  assign featured_media = current_variant.featured_media | default: product.featured_media
+  assign form_id = 'ReservedProductForm-' | append: section.id
+  assign has_buy_buttons = section.blocks | where: 'type', 'buy_buttons' | size
+
+  assign on_sale = false
+  if current_variant.compare_at_price > current_variant.price
+    assign on_sale = true
+    assign discount = current_variant.compare_at_price | minus: current_variant.price | times: 100.0 | divided_by: current_variant.compare_at_price | round
+  endif
+
+  assign add_to_cart_text = section.settings.add_to_cart_text
+  if add_to_cart_text == blank
+    assign add_to_cart_text = 'products.product.add_to_cart' | t
+  endif
+  assign sold_out_text = section.settings.sold_out_text
+  if sold_out_text == blank
+    assign sold_out_text = 'products.product.sold_out' | t
+  endif
+  assign unavailable_text = section.settings.unavailable_text
+  if unavailable_text == blank
+    assign unavailable_text = 'products.product.unavailable' | t
+  endif
+
+  assign quantity_rule = current_variant.quantity_rule
+-%}
+
+{{ 'reserved-product.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'reserved-product.js' | asset_url }}" defer="defer"></script>
+
+<style>
+  {%- if section.settings.title_font == 'condensed' -%}
+    @font-face {
+      font-family: 'Anton';
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+      src: url('{{ 'anton-latin.woff2' | asset_url }}') format('woff2');
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+    @font-face {
+      font-family: 'Anton';
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+      src: url('{{ 'anton-latin-ext.woff2' | asset_url }}') format('woff2');
+      unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+    }
+  {%- endif %}
+  #ReservedProduct-{{ section.id }} {
+    --rp-bg: {{ section.settings.background_color }};
+    --rp-text: {{ section.settings.text_color }};
+    --rp-accent: {{ section.settings.accent_color }};
+    --rp-sale: {{ section.settings.sale_color }};
+    --rp-pad-top: {{ section.settings.padding_top }}px;
+    --rp-pad-bottom: {{ section.settings.padding_bottom }}px;
+    --rp-media-width: {{ section.settings.media_width }}%;
+    --rp-max-width: {{ section.settings.content_width }}px;
+    {%- if section.settings.title_font == 'condensed' %}
+      --rp-title-font: 'Anton', 'Bebas Neue', 'Oswald', Impact, sans-serif;
+      --rp-title-weight: 400;
+      --rp-title-spacing: 0.01em;
+    {%- endif %}
+  }
+</style>
+
+<reserved-product
+  id="ReservedProduct-{{ section.id }}"
+  class="rp{% if section.settings.sticky_info %} rp--sticky-info{% endif %}"
+  data-section-id="{{ section.id }}"
+  data-product-url="{{ product.url }}"
+  data-update-url="{{ section.settings.update_url }}"
+  data-cart-add-url="{{ routes.cart_add_url }}"
+  data-add-text="{{ add_to_cart_text | escape }}"
+  data-sold-out-text="{{ sold_out_text | escape }}"
+  data-unavailable-text="{{ unavailable_text | escape }}"
+  data-cart-error-text="{{ 'sections.cart.cart_error' | t | escape }}"
+>
+  <div class="rp__container">
+    <div class="rp__grid">
+      <div class="rp__media">
+        {% render 'reserved-gallery', product: product, section: section, featured_media: featured_media %}
+      </div>
+
+      <div class="rp__info">
+        {%- for block in section.blocks -%}
+          {%- case block.type -%}
+            {%- when '@app' -%}
+              {% render block %}
+
+            {%- when 'text' -%}
+              {%- if block.settings.source == 'custom' -%}
+                {%- if block.settings.text != blank -%}
+                  <p class="rp__text rp__text--{{ block.settings.style }}" {{ block.shopify_attributes }}>
+                    {{- block.settings.text | escape -}}
+                  </p>
+                {%- endif -%}
+              {%- else -%}
+                {%- liquid
+                  assign color_index = -1
+                  if block.settings.source == 'type_color'
+                    for option in product.options_with_values
+                      assign option_name = option.name | downcase
+                      if option_name contains 'color' or option_name contains 'colour'
+                        assign color_index = forloop.index0
+                        assign color_value = option.selected_value
+                        break
+                      endif
+                    endfor
+                  endif
+                -%}
+                {%- if product.type != blank or color_index > -1 -%}
+                  <p class="rp__text rp__text--{{ block.settings.style }}" {{ block.shopify_attributes }}>
+                    {{- product.type | escape -}}
+                    {%- if color_index > -1 -%}
+                      {%- if product.type != blank %} · {% endif -%}
+                      <span data-selected-value="{{ color_index }}">{{ color_value | escape }}</span>
+                    {%- endif -%}
+                  </p>
+                {%- endif -%}
+              {%- endif -%}
+
+            {%- when 'title' -%}
+              <h1 class="rp__title rp__title--{{ block.settings.size }}" {{ block.shopify_attributes }}>
+                {{- product.title | escape -}}
+              </h1>
+
+            {%- when 'rating' -%}
+              {%- liquid
+                assign rating_value = product.metafields.reviews.rating.value.rating
+                assign rating_max = product.metafields.reviews.rating.value.scale_max | default: 5
+                assign rating_count = product.metafields.reviews.rating_count.value
+              -%}
+              {%- if rating_value != blank -%}
+                {%- assign rating_percent = rating_value | times: 100.0 | divided_by: rating_max -%}
+                <div class="rp__rating" {{ block.shopify_attributes }}>
+                  <span class="rp__stars" style="--rp-rating: {{ rating_percent }}%;" aria-hidden="true"></span>
+                  <span aria-hidden="true">{{ rating_value | round: 1 }}</span>
+                  {%- if rating_count != blank -%}
+                    <span class="rp__rating-count" aria-hidden="true">({{ rating_count }})</span>
+                  {%- endif -%}
+                  <span class="rp-sr">
+                    {{- 'accessibility.star_reviews_info' | t: rating_value: rating_value, rating_max: rating_max -}}
+                    {%- if rating_count != blank %}, {{ rating_count }} {{ 'accessibility.total_reviews' | t }}{% endif -%}
+                  </span>
+                </div>
+              {%- endif -%}
+
+            {%- when 'price' -%}
+              <div class="rp__price-block" {{ block.shopify_attributes }}>
+                <div class="rp__price">
+                  <span class="rp__price-amounts" role="status" aria-live="polite" aria-atomic="true">
+                    <span class="rp__price-compare" data-compare-wrap {% unless on_sale %}hidden{% endunless %}>
+                      <span class="rp-sr">{{ 'products.product.price.regular_price' | t }}</span>
+                      <s data-compare-price>{{ current_variant.compare_at_price | money }}</s>
+                    </span>
+                    <span class="rp-sr" data-sale-label {% unless on_sale %}hidden{% endunless %}>
+                      {{- 'products.product.price.sale_price' | t -}}
+                    </span>
+                    <span class="rp__price-current{% if on_sale %} is-sale{% endif %}" data-price>
+                      {{- current_variant.price | money -}}
+                    </span>
+                    <span class="rp__price-unavailable" data-price-unavailable hidden>{{ unavailable_text }}</span>
+                  </span>
+                  {%- if block.settings.show_sale_badge -%}
+                    <span
+                      class="rp__badge rp__badge--sale"
+                      data-sale-badge
+                      data-badge-style="{{ block.settings.badge_style }}"
+                      data-badge-text="{{ block.settings.badge_text | escape }}"
+                      {% unless on_sale %}hidden{% endunless %}
+                    >
+                      {%- if block.settings.badge_style == 'percent' and on_sale -%}
+                        -{{ discount }}%
+                      {%- else -%}
+                        {{ block.settings.badge_text | escape }}
+                      {%- endif -%}
+                    </span>
+                  {%- endif -%}
+                  <span class="rp__badge rp__badge--soldout" data-soldout-badge {% if current_variant.available %}hidden{% endif %}>
+                    {{- sold_out_text | escape -}}
+                  </span>
+                </div>
+                <p class="rp__unit-price" data-unit-price {% unless current_variant.unit_price_measurement %}hidden{% endunless %}>
+                  <span class="rp-sr">{{ 'products.product.price.unit_price' | t }}</span>
+                  <span data-unit-price-amount>{{ current_variant.unit_price | money }}</span>
+                  <span aria-hidden="true">/</span>
+                  <span class="rp-sr">&nbsp;{{ 'accessibility.unit_price_separator' | t }}&nbsp;</span>
+                  <span data-unit-price-base>
+                    {%- if current_variant.unit_price_measurement.reference_value != 1 -%}
+                      {{- current_variant.unit_price_measurement.reference_value -}}
+                    {%- endif -%}
+                    {{ current_variant.unit_price_measurement.reference_unit }}
+                  </span>
+                </p>
+                {%- if block.settings.note != blank -%}
+                  <p class="rp__price-note">{{ block.settings.note | escape }}</p>
+                {%- endif -%}
+              </div>
+
+            {%- when 'variant_picker' -%}
+              {% render 'reserved-variant-picker', product: product, block: block, section: section, sold_out_text: sold_out_text %}
+
+            {%- when 'buy_buttons' -%}
+              <div class="rp__buy" {{ block.shopify_attributes }}>
+                {%- form 'product', product, id: form_id, class: 'rp__form', novalidate: 'novalidate', data-product-form: '' -%}
+                  <input
+                    type="hidden"
+                    name="id"
+                    value="{{ current_variant.id }}"
+                    data-variant-id-input
+                    {% unless current_variant.available %}disabled{% endunless %}
+                  >
+                  {%- if product.selling_plan_groups.size > 0 -%}
+                    <input
+                      type="hidden"
+                      name="selling_plan"
+                      value="{{ current_variant.selected_selling_plan_allocation.selling_plan.id }}"
+                    >
+                  {%- endif -%}
+                  {%- unless product.has_only_default_variant -%}
+                    <noscript>
+                      <label class="rp__option-label" for="NoJsVariant-{{ section.id }}">
+                        {{- 'products.product.product_variants' | t -}}
+                      </label>
+                      <select class="rp__select" name="id" id="NoJsVariant-{{ section.id }}">
+                        {%- for variant in product.variants -%}
+                          <option
+                            value="{{ variant.id }}"
+                            {% if variant.id == current_variant.id %}selected{% endif %}
+                            {% unless variant.available %}disabled{% endunless %}
+                          >
+                            {{ variant.title | escape }} - {{ variant.price | money }}
+                          </option>
+                        {%- endfor -%}
+                      </select>
+                    </noscript>
+                  {%- endunless -%}
+
+                  {%- if product.gift_card? and block.settings.show_gift_card_recipient -%}
+                    {%- render 'gift-card-recipient-form', product: product, form: form, section: section -%}
+                  {%- endif -%}
+
+                  <div class="rp__buy-row">
+                    {%- if block.settings.show_quantity -%}
+                      <div class="rp__qty-wrap">
+                        <label class="rp-sr" for="Quantity-{{ section.id }}">{{ 'products.product.quantity.label' | t }}</label>
+                        <div class="rp__qty">
+                          <button
+                            type="button"
+                            class="rp__qty-btn"
+                            data-qty-minus
+                            aria-label="{{ 'products.product.quantity.decrease' | t: product: product.title | escape }}"
+                            {% if quantity_rule.min <= 1 %}disabled{% endif %}
+                          >
+                            <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M1 6h10" stroke="currentColor" stroke-width="1.5"/></svg>
+                          </button>
+                          <input
+                            class="rp__qty-input"
+                            type="number"
+                            name="quantity"
+                            id="Quantity-{{ section.id }}"
+                            min="{{ quantity_rule.min }}"
+                            {% if quantity_rule.max != null %}max="{{ quantity_rule.max }}"{% endif %}
+                            step="{{ quantity_rule.increment }}"
+                            value="{{ quantity_rule.min }}"
+                            inputmode="numeric"
+                            data-qty-input
+                          >
+                          <button
+                            type="button"
+                            class="rp__qty-btn"
+                            data-qty-plus
+                            aria-label="{{ 'products.product.quantity.increase' | t: product: product.title | escape }}"
+                          >
+                            <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M1 6h10M6 1v10" stroke="currentColor" stroke-width="1.5"/></svg>
+                          </button>
+                        </div>
+                      </div>
+                    {%- endif -%}
+
+                    <button
+                      type="submit"
+                      name="add"
+                      class="rp__btn rp__btn--primary"
+                      data-add-button
+                      {% unless current_variant.available %}disabled{% endunless %}
+                    >
+                      <span data-add-text>
+                        {%- if current_variant.available -%}
+                          {{ add_to_cart_text | escape }}
+                        {%- else -%}
+                          {{ sold_out_text | escape }}
+                        {%- endif -%}
+                      </span>
+                      {%- if block.settings.show_price_in_button -%}
+                        <span class="rp__btn-price" data-btn-price {% unless current_variant.available %}hidden{% endunless %}>
+                          <span data-price>{{ current_variant.price | money }}</span>
+                        </span>
+                      {%- endif -%}
+                      <span class="rp__spinner" aria-hidden="true"></span>
+                    </button>
+                  </div>
+
+                  {%- if quantity_rule.min > 1 or quantity_rule.max != null or quantity_rule.increment > 1 -%}
+                    <p class="rp__qty-rules" data-qty-rules>
+                      {%- if quantity_rule.increment > 1 -%}
+                        <span>{{ 'products.product.quantity.multiples_of' | t: quantity: quantity_rule.increment }}</span>
+                      {%- endif -%}
+                      {%- if quantity_rule.min > 1 -%}
+                        <span>{{ 'products.product.quantity.minimum_of' | t: quantity: quantity_rule.min }}</span>
+                      {%- endif -%}
+                      {%- if quantity_rule.max != null -%}
+                        <span>{{ 'products.product.quantity.maximum_of' | t: quantity: quantity_rule.max }}</span>
+                      {%- endif -%}
+                    </p>
+                  {%- endif -%}
+
+                  <div class="rp__message rp__message--error" role="alert" data-error></div>
+                  <div class="rp__message rp__message--success" role="status" data-success>
+                    <span data-success-content hidden>
+                      {{ 'general.cart.item_added' | t }}.
+                      <a href="{{ routes.cart_url }}">{{ 'general.cart.view_empty_cart' | t }}</a>
+                    </span>
+                  </div>
+
+                  {%- if block.settings.show_dynamic_checkout -%}
+                    <div class="rp__dynamic-checkout">{{ form | payment_button }}</div>
+                  {%- endif -%}
+
+                  <div class="rp__installments">{{ form | payment_terms }}</div>
+                {%- endform -%}
+
+                {%- if block.settings.show_pickup_availability -%}
+                  {{ 'component-pickup-availability.css' | asset_url | stylesheet_tag }}
+                  {%- assign pick_up_availabilities = current_variant.store_availabilities | where: 'pick_up_enabled', true -%}
+                  <pickup-availability
+                    class="rp__pickup product__pickup-availabilities"
+                    {% if current_variant.available and pick_up_availabilities.size > 0 %}
+                      available
+                    {% endif %}
+                    data-root-url="{{ routes.root_url }}"
+                    data-variant-id="{{ current_variant.id }}"
+                    data-has-only-default-variant="{{ product.has_only_default_variant }}"
+                    data-product-page-color-scheme="gradient color-scheme-1"
+                  >
+                    <template>
+                      <pickup-availability-preview class="pickup-availability-preview">
+                        <span class="svg-wrapper">
+                          {{- 'icon-unavailable.svg' | inline_asset_content -}}
+                        </span>
+                        <div class="pickup-availability-info">
+                          <p class="caption-large">{{ 'products.product.pickup_availability.unavailable' | t }}</p>
+                          <button class="pickup-availability-button link link--text underlined-link">
+                            {{ 'products.product.pickup_availability.refresh' | t }}
+                          </button>
+                        </div>
+                      </pickup-availability-preview>
+                    </template>
+                  </pickup-availability>
+                  <script src="{{ 'pickup-availability.js' | asset_url }}" defer="defer"></script>
+                {%- endif -%}
+              </div>
+
+            {%- when 'description' -%}
+              {%- if product.description != blank -%}
+                {%- if block.settings.collapsible -%}
+                  <details class="rp__accordion" {% if block.settings.open %}open{% endif %} {{ block.shopify_attributes }}>
+                    <summary class="rp__accordion-summary">
+                      {{- block.settings.heading | escape -}}
+                      <span class="rp__accordion-icon" aria-hidden="true"></span>
+                    </summary>
+                    <div class="rp__accordion-content rp__rte">{{ product.description }}</div>
+                  </details>
+                {%- else -%}
+                  <div class="rp__description rp__rte" {{ block.shopify_attributes }}>{{ product.description }}</div>
+                {%- endif -%}
+              {%- endif -%}
+
+            {%- when 'features' -%}
+              <ul class="rp__features" {{ block.shopify_attributes }}>
+                {%- for i in (1..4) -%}
+                  {%- capture key %}text_{{ i }}{% endcapture -%}
+                  {%- capture icon_key %}icon_{{ i }}{% endcapture -%}
+                  {%- if block.settings[key] != blank -%}
+                    <li class="rp__feature">
+                      <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round">
+                        {%- case block.settings[icon_key] -%}
+                          {%- when 'truck' -%}
+                            <path d="M1.5 3.5h8v7h-8zM9.5 6h3l2 2.5v2h-5z"/><circle cx="4.5" cy="11.5" r="1.3" fill="currentColor"/><circle cx="12" cy="11.5" r="1.3" fill="currentColor"/>
+                          {%- when 'returns' -%}
+                            <path d="M13.5 8A5.5 5.5 0 1 1 11.6 3.8M13.5 2v3h-3"/>
+                          {%- when 'lock' -%}
+                            <path d="M3.5 7h9v7h-9zM5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>
+                          {%- else -%}
+                            <path d="M3 8.5l3 3 7-7"/>
+                        {%- endcase -%}
+                      </svg>
+                      <span>{{ block.settings[key] | escape }}</span>
+                    </li>
+                  {%- endif -%}
+                {%- endfor -%}
+              </ul>
+
+            {%- when 'collapsible_tab' -%}
+              <details class="rp__accordion" {% if block.settings.open %}open{% endif %} {{ block.shopify_attributes }}>
+                <summary class="rp__accordion-summary">
+                  {{- block.settings.heading | escape -}}
+                  <span class="rp__accordion-icon" aria-hidden="true"></span>
+                </summary>
+                <div class="rp__accordion-content rp__rte">
+                  {{- block.settings.content -}}
+                  {{- block.settings.page.content -}}
+                </div>
+              </details>
+
+            {%- when 'custom_liquid' -%}
+              <div class="rp__custom-liquid" {{ block.shopify_attributes }}>{{ block.settings.custom_liquid }}</div>
+          {%- endcase -%}
+        {%- endfor -%}
+      </div>
+    </div>
+  </div>
+
+  {%- if section.settings.enable_sticky_bar and has_buy_buttons > 0 -%}
+    <div class="rp__sticky" data-sticky-bar inert aria-hidden="true">
+      <div class="rp__sticky-inner">
+        <div class="rp__sticky-info">
+          <span class="rp__sticky-title">{{ product.title | escape }}</span>
+          <span class="rp__sticky-meta">
+            {%- unless product.has_only_default_variant -%}
+              <span class="rp__sticky-variant" data-sticky-variant>{{ current_variant.title | escape }}</span>
+            {%- endunless -%}
+            <span class="rp__sticky-price" data-price>{{ current_variant.price | money }}</span>
+          </span>
+        </div>
+        <button
+          type="submit"
+          form="{{ form_id }}"
+          class="rp__btn rp__btn--primary rp__sticky-btn"
+          data-sticky-button
+          {% unless current_variant.available %}disabled{% endunless %}
+        >
+          <span data-add-text>
+            {%- if current_variant.available -%}
+              {{ add_to_cart_text | escape }}
+            {%- else -%}
+              {{ sold_out_text | escape }}
+            {%- endif -%}
+          </span>
+          <span class="rp__spinner" aria-hidden="true"></span>
+        </button>
+      </div>
+    </div>
+  {%- endif -%}
+
+  <script type="application/json" data-product-json>
+    {
+      "variants": {{ product.variants | json }},
+      "moneyFormat": {{ shop.money_format | json }}
+    }
+  </script>
+</reserved-product>
+
+{% schema %}
+{
+  "name": "Reserved product",
+  "tag": "section",
+  "class": "section-reserved-product",
+  "enabled_on": {
+    "templates": ["product"]
+  },
+  "settings": [
+    {
+      "type": "header",
+      "content": "Gallery"
+    },
+    {
+      "type": "select",
+      "id": "gallery_layout",
+      "label": "Desktop gallery layout",
+      "options": [
+        { "value": "thumbs_left", "label": "Thumbnails left" },
+        { "value": "thumbs_bottom", "label": "Thumbnails below" },
+        { "value": "grid", "label": "Stacked grid" }
+      ],
+      "default": "thumbs_left"
+    },
+    {
+      "type": "select",
+      "id": "image_ratio",
+      "label": "Image ratio",
+      "options": [
+        { "value": "portrait", "label": "Portrait (3:4)" },
+        { "value": "tall", "label": "Tall (2:3)" },
+        { "value": "square", "label": "Square" },
+        { "value": "adapt", "label": "Adapt to first image" }
+      ],
+      "default": "portrait"
+    },
+    {
+      "type": "range",
+      "id": "media_width",
+      "label": "Gallery width on desktop",
+      "min": 40,
+      "max": 65,
+      "step": 5,
+      "unit": "%",
+      "default": 55
+    },
+    {
+      "type": "range",
+      "id": "content_width",
+      "label": "Maximum content width",
+      "min": 900,
+      "max": 1600,
+      "step": 20,
+      "unit": "px",
+      "default": 1440
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_zoom",
+      "label": "Enable hover zoom on desktop",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Behavior"
+    },
+    {
+      "type": "checkbox",
+      "id": "sticky_info",
+      "label": "Sticky product info on desktop",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_sticky_bar",
+      "label": "Sticky add to cart bar on mobile",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "update_url",
+      "label": "Update URL when a variant is selected",
+      "info": "Lets customers share a link to the exact size and color.",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Typography"
+    },
+    {
+      "type": "select",
+      "id": "title_font",
+      "label": "Title font",
+      "options": [
+        { "value": "theme", "label": "Theme heading font" },
+        { "value": "condensed", "label": "Bold condensed (Anton)" }
+      ],
+      "default": "theme"
+    },
+    {
+      "type": "header",
+      "content": "Labels"
+    },
+    {
+      "type": "paragraph",
+      "content": "Leave blank to use the theme's translated text for each store language."
+    },
+    {
+      "type": "text",
+      "id": "add_to_cart_text",
+      "label": "Add to cart button"
+    },
+    {
+      "type": "text",
+      "id": "sold_out_text",
+      "label": "Sold out label"
+    },
+    {
+      "type": "text",
+      "id": "unavailable_text",
+      "label": "Unavailable label"
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text",
+      "default": "#111111"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Buttons and selected options",
+      "default": "#111111"
+    },
+    {
+      "type": "color",
+      "id": "sale_color",
+      "label": "Sale price and badge",
+      "default": "#b3261e"
+    },
+    {
+      "type": "header",
+      "content": "Spacing"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "label": "Top padding",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "default": 32
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "label": "Bottom padding",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "default": 48
+    }
+  ],
+  "blocks": [
+    {
+      "type": "@app"
+    },
+    {
+      "type": "text",
+      "name": "Text",
+      "settings": [
+        {
+          "type": "select",
+          "id": "source",
+          "label": "Content",
+          "options": [
+            { "value": "custom", "label": "Custom text" },
+            { "value": "type", "label": "Product type" },
+            { "value": "type_color", "label": "Product type · selected color" }
+          ],
+          "default": "custom"
+        },
+        {
+          "type": "text",
+          "id": "text",
+          "label": "Text",
+          "info": "Used when content is set to Custom text.",
+          "default": "Reserved LA"
+        },
+        {
+          "type": "select",
+          "id": "style",
+          "label": "Style",
+          "options": [
+            { "value": "eyebrow", "label": "Eyebrow (small caps)" },
+            { "value": "body", "label": "Body" }
+          ],
+          "default": "eyebrow"
+        }
+      ]
+    },
+    {
+      "type": "title",
+      "name": "Title",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "select",
+          "id": "size",
+          "label": "Size",
+          "options": [
+            { "value": "small", "label": "Small" },
+            { "value": "medium", "label": "Medium" },
+            { "value": "large", "label": "Large" }
+          ],
+          "default": "medium"
+        }
+      ]
+    },
+    {
+      "type": "rating",
+      "name": "Rating",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "paragraph",
+          "content": "Reads the reviews.rating and reviews.rating_count metafields written by most review apps. Hidden when a product has no reviews."
+        }
+      ]
+    },
+    {
+      "type": "price",
+      "name": "Price",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "checkbox",
+          "id": "show_sale_badge",
+          "label": "Show sale badge",
+          "default": true
+        },
+        {
+          "type": "select",
+          "id": "badge_style",
+          "label": "Sale badge style",
+          "options": [
+            { "value": "percent", "label": "Percentage off" },
+            { "value": "text", "label": "Text" }
+          ],
+          "default": "percent"
+        },
+        {
+          "type": "text",
+          "id": "badge_text",
+          "label": "Sale badge text",
+          "default": "Sale"
+        },
+        {
+          "type": "text",
+          "id": "note",
+          "label": "Note below price",
+          "default": "Shipping calculated at checkout."
+        }
+      ]
+    },
+    {
+      "type": "variant_picker",
+      "name": "Variant picker",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "select",
+          "id": "picker_type",
+          "label": "Style",
+          "options": [
+            { "value": "buttons", "label": "Buttons" },
+            { "value": "dropdown", "label": "Dropdown" }
+          ],
+          "default": "buttons"
+        },
+        {
+          "type": "checkbox",
+          "id": "show_selected_value",
+          "label": "Show selected value next to option name",
+          "default": true
+        },
+        {
+          "type": "checkbox",
+          "id": "color_swatches",
+          "label": "Show color options as swatches",
+          "info": "Applies to options named Color or Colour.",
+          "default": true
+        },
+        {
+          "type": "textarea",
+          "id": "swatch_colors",
+          "label": "Swatch colors",
+          "info": "One per line, e.g. Brown: #7E6558. Used when the color has no swatch set in Shopify admin; otherwise the color name is used."
+        },
+        {
+          "type": "page",
+          "id": "size_guide_page",
+          "label": "Size guide page"
+        },
+        {
+          "type": "text",
+          "id": "size_guide_label",
+          "label": "Size guide link text",
+          "default": "Size guide"
+        }
+      ]
+    },
+    {
+      "type": "buy_buttons",
+      "name": "Buy buttons",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "checkbox",
+          "id": "show_quantity",
+          "label": "Show quantity selector",
+          "default": true
+        },
+        {
+          "type": "checkbox",
+          "id": "show_price_in_button",
+          "label": "Show price in add to cart button",
+          "default": true
+        },
+        {
+          "type": "checkbox",
+          "id": "show_dynamic_checkout",
+          "label": "Show dynamic checkout buttons",
+          "info": "Shows Shop Pay, Apple Pay, etc. based on enabled payment methods.",
+          "default": true
+        },
+        {
+          "type": "checkbox",
+          "id": "show_pickup_availability",
+          "label": "Show local pickup availability",
+          "info": "Appears when local pickup is enabled for a location.",
+          "default": true
+        },
+        {
+          "type": "checkbox",
+          "id": "show_gift_card_recipient",
+          "label": "Show recipient form for gift cards",
+          "default": true
+        }
+      ]
+    },
+    {
+      "type": "description",
+      "name": "Description",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "checkbox",
+          "id": "collapsible",
+          "label": "Show as collapsible row",
+          "default": false
+        },
+        {
+          "type": "text",
+          "id": "heading",
+          "label": "Collapsible row heading",
+          "default": "Description"
+        },
+        {
+          "type": "checkbox",
+          "id": "open",
+          "label": "Open by default",
+          "default": true
+        }
+      ]
+    },
+    {
+      "type": "features",
+      "name": "Feature list",
+      "settings": [
+        {
+          "type": "text",
+          "id": "text_1",
+          "label": "Feature 1",
+          "default": "Free U.S. shipping on orders over $150"
+        },
+        {
+          "type": "select",
+          "id": "icon_1",
+          "label": "Feature 1 icon",
+          "options": [
+            { "value": "truck", "label": "Truck" },
+            { "value": "returns", "label": "Returns" },
+            { "value": "lock", "label": "Lock" },
+            { "value": "check", "label": "Check" }
+          ],
+          "default": "truck"
+        },
+        {
+          "type": "text",
+          "id": "text_2",
+          "label": "Feature 2",
+          "default": "Free returns within 30 days"
+        },
+        {
+          "type": "select",
+          "id": "icon_2",
+          "label": "Feature 2 icon",
+          "options": [
+            { "value": "truck", "label": "Truck" },
+            { "value": "returns", "label": "Returns" },
+            { "value": "lock", "label": "Lock" },
+            { "value": "check", "label": "Check" }
+          ],
+          "default": "returns"
+        },
+        {
+          "type": "text",
+          "id": "text_3",
+          "label": "Feature 3",
+          "default": "Secure checkout"
+        },
+        {
+          "type": "select",
+          "id": "icon_3",
+          "label": "Feature 3 icon",
+          "options": [
+            { "value": "truck", "label": "Truck" },
+            { "value": "returns", "label": "Returns" },
+            { "value": "lock", "label": "Lock" },
+            { "value": "check", "label": "Check" }
+          ],
+          "default": "lock"
+        },
+        {
+          "type": "text",
+          "id": "text_4",
+          "label": "Feature 4",
+          "default": "Designed in Los Angeles"
+        },
+        {
+          "type": "select",
+          "id": "icon_4",
+          "label": "Feature 4 icon",
+          "options": [
+            { "value": "truck", "label": "Truck" },
+            { "value": "returns", "label": "Returns" },
+            { "value": "lock", "label": "Lock" },
+            { "value": "check", "label": "Check" }
+          ],
+          "default": "check"
+        }
+      ]
+    },
+    {
+      "type": "collapsible_tab",
+      "name": "Collapsible row",
+      "settings": [
+        {
+          "type": "text",
+          "id": "heading",
+          "label": "Heading",
+          "default": "Size & Fit"
+        },
+        {
+          "type": "richtext",
+          "id": "content",
+          "label": "Content",
+          "default": "<p>Relaxed fit. Model is 6'1\" and wears a size M.</p>"
+        },
+        {
+          "type": "page",
+          "id": "page",
+          "label": "Content from page",
+          "info": "Useful for shared content like shipping or care instructions."
+        },
+        {
+          "type": "checkbox",
+          "id": "open",
+          "label": "Open by default",
+          "default": false
+        }
+      ]
+    },
+    {
+      "type": "custom_liquid",
+      "name": "Custom Liquid",
+      "settings": [
+        {
+          "type": "liquid",
+          "id": "custom_liquid",
+          "label": "Custom Liquid"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Reserved product",
+      "blocks": [
+        { "type": "text" },
+        { "type": "title" },
+        { "type": "rating" },
+        { "type": "price" },
+        { "type": "variant_picker" },
+        { "type": "buy_buttons" },
+        { "type": "features" },
+        { "type": "description" },
+        { "type": "collapsible_tab" }
+      ]
+    }
+  ]
+}
+{% endschema %}

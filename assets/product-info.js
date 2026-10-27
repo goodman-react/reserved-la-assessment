@@ -314,6 +314,10 @@ if (!customElements.get('product-info')) {
           });
         }
 
+        this.querySelector('media-gallery')?.replaceThumbnails?.(
+          html.querySelector('media-gallery [id^="GalleryThumbnails"]')
+        );
+
         // set featured media as active in the media gallery
         this.querySelector(`media-gallery`)?.setActiveMedia?.(
           `${this.dataset.section}-${variantFeaturedMediaId}`,

@@ -1,0 +1,163 @@
+{%- comment -%}
+  Variant picker rendered as buttons/swatches or dropdowns. Selection is
+  resolved to a variant in assets/reserved-product.js.
+
+  Accepts:
+  - product: {Object} Product object
+  - block: {Object} variant_picker block
+  - section: {Object} Section object
+  - sold_out_text: {String} Label for sold-out option values
+{%- endcomment -%}
+
+{%- unless product.has_only_default_variant -%}
+  {%- liquid
+    assign size_guide_index = -1
+    if block.settings.size_guide_page != blank
+      for option in product.options_with_values
+        assign option_name = option.name | downcase
+        if option_name contains 'size'
+          assign size_guide_index = forloop.index0
+          break
+        endif
+      endfor
+    endif
+
+    assign swatch_lines = block.settings.swatch_colors | newline_to_br | split: '<br />'
+
+    # Color is shown first so customers pick it before size; data-option-index keeps the real option order.
+    assign color_markup = ''
+    assign other_markup = ''
+  -%}
+  {%- capture size_guide_link -%}
+    <a class="rp__size-guide" href="{{ block.settings.size_guide_page.url }}" target="_blank" rel="noopener">
+      <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1.5 10.5l9-9 4 4-9 9zM4.5 7.5l1.5 1.5M6.5 5.5l1.5 1.5M8.5 3.5l1.5 1.5"/></svg>
+      {{- block.settings.size_guide_label | escape -}}
+      <span class="rp-sr">({{ 'accessibility.link_messages.new_window' | t }})</span>
+    </a>
+  {%- endcapture -%}
+
+  <div class="rp__variants" {{ block.shopify_attributes }}>
+    {%- for option in product.options_with_values -%}
+      {%- liquid
+        assign option_index = forloop.index0
+        assign option_name = option.name | downcase
+        assign is_color = false
+        if option_name contains 'color' or option_name contains 'colour'
+          assign is_color = true
+        endif
+        assign is_swatch = false
+        if is_color and block.settings.color_swatches
+          assign is_swatch = true
+        endif
+        assign has_guide = false
+        if option_index == size_guide_index
+          assign has_guide = true
+        endif
+      -%}
+
+      {%- capture option_markup -%}
+        {%- if block.settings.picker_type == 'dropdown' -%}
+          <div class="rp__option">
+            <div class="rp__option-head">
+              <label class="rp__option-label" for="Option-{{ section.id }}-{{ option_index }}">
+                {{- option.name | escape -}}
+              </label>
+              {%- if has_guide -%}{{ size_guide_link }}{%- endif -%}
+            </div>
+            <div class="rp__select-wrap">
+              <select class="rp__select" id="Option-{{ section.id }}-{{ option_index }}" data-option-index="{{ option_index }}">
+                {%- for value in option.values -%}
+                  <option value="{{ value.name | escape }}" {% if option.selected_value == value.name %}selected{% endif %}>
+                    {{- value.name | escape -}}
+                    {%- unless value.available %} - {{ sold_out_text | escape }}{% endunless -%}
+                  </option>
+                {%- endfor -%}
+              </select>
+            </div>
+          </div>
+        {%- else -%}
+          <fieldset class="rp__option{% if is_swatch %} rp__option--swatch{% endif %}{% if has_guide %} rp__option--has-guide{% endif %}">
+            <legend class="rp__option-label">
+              {{- option.name | escape -}}
+              {%- if block.settings.show_selected_value or is_swatch -%}
+                : <span class="rp__option-selected" data-selected-value="{{ option_index }}">{{ option.selected_value | escape }}</span>
+              {%- endif -%}
+            </legend>
+            {%- if has_guide -%}{{ size_guide_link }}{%- endif -%}
+            <div class="rp__option-values">
+              {%- for value in option.values -%}
+                {%- liquid
+                  assign input_id = 'Option-' | append: section.id | append: '-' | append: option_index | append: '-' | append: forloop.index0
+
+                  # Swatch source priority: Shopify swatch image/color, then the block's "Swatch colors" list, then the color name.
+                  assign swatch_style = ''
+                  assign swatch_name = ''
+                  if is_swatch
+                    if value.swatch.image
+                      assign swatch_image = value.swatch.image | image_url: width: 72
+                      assign swatch_style = '--swatch: url(' | append: swatch_image | append: ') center / cover;'
+                    elsif value.swatch.color
+                      assign swatch_style = '--swatch: ' | append: value.swatch.color | append: ';'
+                    else
+                      assign value_key = value.name | strip | downcase
+                      for line in swatch_lines
+                        assign pair = line | split: ':'
+                        assign pair_name = pair.first | strip | downcase
+                        if pair.size > 1 and pair_name == value_key
+                          assign swatch_style = '--swatch: ' | append: pair.last | strip | append: ';'
+                          break
+                        endif
+                      endfor
+                      if swatch_style == blank
+                        assign swatch_name = value.name | handle | remove: '-'
+                        assign swatch_style = '--swatch: ' | append: swatch_name | append: ';'
+                      endif
+                    endif
+                  endif
+                -%}
+                <input
+                  type="radio"
+                  class="rp__option-input rp-sr"
+                  id="{{ input_id }}"
+                  name="Option-{{ section.id }}-{{ option_index }}"
+                  value="{{ value.name | escape }}"
+                  data-option-index="{{ option_index }}"
+                  {% if option.selected_value == value.name %}checked{% endif %}
+                >
+                <label
+                  class="rp__option-btn{% unless value.available %} is-unavailable{% endunless %}"
+                  for="{{ input_id }}"
+                  title="{{ value.name | escape }}"
+                >
+                  {%- if is_swatch -%}
+                    <span
+                      class="rp__swatch"
+                      style="{{ swatch_style | escape }}"
+                      {% if swatch_name != blank %}data-swatch-name="{{ swatch_name }}"{% endif %}
+                    ></span>
+                    <span class="rp__swatch-text">{{ value.name | escape }}</span>
+                  {%- else -%}
+                    {{- value.name | escape -}}
+                  {%- endif -%}
+                  <span class="rp-sr" data-unavailable-label {% if value.available %}hidden{% endif %}>
+                    , {{ sold_out_text | escape -}}
+                  </span>
+                </label>
+              {%- endfor -%}
+            </div>
+          </fieldset>
+        {%- endif -%}
+      {%- endcapture -%}
+
+      {%- liquid
+        if is_color
+          assign color_markup = color_markup | append: option_markup
+        else
+          assign other_markup = other_markup | append: option_markup
+        endif
+      -%}
+    {%- endfor -%}
+    {{- color_markup -}}
+    {{- other_markup -}}
+  </div>
+{%- endunless -%}

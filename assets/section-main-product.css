@@ -1010,6 +1010,37 @@ a.product__text {
   }
 }
 
+@media screen and (min-width: 750px) {
+  /* Mirrors .product-media-container.constrain-height.media-fit-contain so the strip matches the main image width. */
+  .thumbnail-slider--constrained {
+    --constrained-height: max(500px, calc(100vh - 170px));
+    width: min(calc(var(--constrained-height) * var(--thumbnail-ratio, 1)), 100%);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .product--thumbnail_slider .thumbnail-slider .thumbnail-list.slider--tablet-up {
+    justify-content: flex-start;
+    gap: 0.8rem;
+    padding: 0.5rem 0;
+  }
+
+  .product--thumbnail_slider .thumbnail-list.slider--tablet-up .thumbnail-list__item.slider__slide {
+    flex: 0 0 calc((100% - 2.4rem) / 4);
+    width: calc((100% - 2.4rem) / 4);
+  }
+
+  .product--thumbnail_slider .thumbnail-list__item::before {
+    padding-bottom: 150%;
+  }
+
+  .product--thumbnail_slider .thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
 .thumbnail {
   position: absolute;
   top: 0;

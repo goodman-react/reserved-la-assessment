@@ -1,72 +1,106 @@
 {
   "sections": {
     "main": {
-      "type": "main-product",
+      "type": "reserved-product",
       "blocks": {
-        "vendor": {
+        "eyebrow": {
           "type": "text",
           "settings": {
-            "text": "{{ product.vendor }}",
-            "text_style": "uppercase"
+            "source": "type_color",
+            "text": "Reserved LA",
+            "style": "eyebrow"
           }
         },
         "title": {
-          "type": "title"
+          "type": "title",
+          "settings": {
+            "size": "medium"
+          }
+        },
+        "rating": {
+          "type": "rating",
+          "settings": {}
         },
         "price": {
-          "type": "price"
+          "type": "price",
+          "settings": {
+            "show_sale_badge": true,
+            "badge_style": "percent",
+            "badge_text": "Sale",
+            "note": ""
+          }
         },
         "variant_picker": {
           "type": "variant_picker",
           "settings": {
-            "picker_type": "button",
-            "swatch_shape": "circle"
+            "picker_type": "buttons",
+            "show_selected_value": true,
+            "color_swatches": true,
+            "swatch_colors": "Brown: #7E6558",
+            "size_guide_label": "Size guide"
           }
-        },
-        "quantity_selector": {
-          "type": "quantity_selector"
         },
         "buy_buttons": {
           "type": "buy_buttons",
           "settings": {
+            "show_quantity": true,
+            "show_price_in_button": true,
             "show_dynamic_checkout": true,
+            "show_pickup_availability": true,
             "show_gift_card_recipient": true
           }
         },
-        "description": {
-          "type": "description"
-        },
-        "share": {
-          "type": "share",
+        "features": {
+          "type": "features",
           "settings": {
-            "share_label": "Share"
+            "text_1": "Free US shipping on orders $150+ · ships in 1–2 business days",
+            "icon_1": "truck",
+            "text_2": "30-day easy returns on unworn items",
+            "icon_2": "returns",
+            "text_3": "Secure checkout · Visa, Mastercard, Amex, Apple Pay",
+            "icon_3": "lock",
+            "text_4": "100% authentic — designed in Los Angeles",
+            "icon_4": "check"
+          }
+        },
+        "description": {
+          "type": "description",
+          "settings": {
+            "collapsible": true,
+            "heading": "Description",
+            "open": true
           }
         }
       },
       "block_order": [
-        "vendor",
+        "eyebrow",
         "title",
+        "rating",
         "price",
         "variant_picker",
-        "quantity_selector",
         "buy_buttons",
-        "description",
-        "share"
+        "features",
+        "description"
       ],
       "settings": {
-        "enable_sticky_info": true,
-        "color_scheme": "scheme-1",
-        "media_position": "left",
-        "gallery_layout": "stacked",
-        "media_size": "large",
-        "constrain_to_viewport": true,
-        "media_fit": "contain",
-        "image_zoom": "lightbox",
-        "mobile_thumbnails": "hide",
-        "hide_variants": true,
-        "enable_video_looping": false,
-        "padding_top": 36,
-        "padding_bottom": 12
+        "gallery_layout": "thumbs_bottom",
+        "image_ratio": "tall",
+        "media_width": 50,
+        "content_width": 1200,
+        "enable_zoom": true,
+        "sticky_info": true,
+        "enable_sticky_bar": true,
+        "update_url": true,
+        "title_font": "condensed",
+        "add_to_cart_text": "Add to bag",
+        "sold_out_text": "",
+        "unavailable_text": "",
+        "background_color": "#f4f1eb",
+        "text_color": "#111111",
+        "accent_color": "#111111",
+        "sale_color": "#c8302b",
+        "padding_top": 32,
+        "padding_bottom": 48
       }
     },
     "disclosures": {
@@ -84,7 +118,7 @@
         "products_to_show": 4,
         "columns_desktop": 4,
         "color_scheme": "scheme-1",
-        "image_ratio": "square",
+        "image_ratio": "portrait",
         "image_shape": "default",
         "show_secondary_image": true,
         "show_vendor": false,
@@ -95,9 +129,5 @@
       }
     }
   },
-  "order": [
-    "main",
-    "disclosures",
-    "related-products"
-  ]
+  "order": ["main", "disclosures", "related-products"]
 }

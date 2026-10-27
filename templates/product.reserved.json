@@ -1,0 +1,120 @@
+{
+  "sections": {
+    "main": {
+      "type": "reserved-product",
+      "blocks": {
+        "eyebrow": {
+          "type": "text",
+          "settings": {
+            "source": "type_color",
+            "text": "Reserved LA",
+            "style": "eyebrow"
+          }
+        },
+        "title": {
+          "type": "title",
+          "settings": {
+            "size": "medium"
+          }
+        },
+        "rating": {
+          "type": "rating",
+          "settings": {}
+        },
+        "price": {
+          "type": "price",
+          "settings": {
+            "show_sale_badge": false,
+            "badge_style": "percent",
+            "badge_text": "Sale",
+            "note": ""
+          }
+        },
+        "variant_picker": {
+          "type": "variant_picker",
+          "settings": {
+            "picker_type": "buttons",
+            "show_selected_value": true,
+            "color_swatches": true,
+            "swatch_colors": "Brown: #7E6558",
+            "size_guide_label": "Size guide"
+          }
+        },
+        "buy_buttons": {
+          "type": "buy_buttons",
+          "settings": {
+            "show_quantity": true,
+            "show_price_in_button": true,
+            "show_dynamic_checkout": false,
+            "show_pickup_availability": true,
+            "show_gift_card_recipient": true
+          }
+        },
+        "features": {
+          "type": "features",
+          "settings": {
+            "text_1": "Free US shipping on orders $150+ · ships in 1–2 business days",
+            "icon_1": "truck",
+            "text_2": "30-day easy returns on unworn items",
+            "icon_2": "returns",
+            "text_3": "Secure checkout · Visa, Mastercard, Amex, Apple Pay",
+            "icon_3": "lock",
+            "text_4": "100% authentic — designed in Los Angeles",
+            "icon_4": "check"
+          }
+        },
+        "description": {
+          "type": "description",
+          "settings": {
+            "collapsible": true,
+            "heading": "Description",
+            "open": true
+          }
+        }
+      },
+      "block_order": [
+        "eyebrow",
+        "title",
+        "rating",
+        "price",
+        "variant_picker",
+        "buy_buttons",
+        "features",
+        "description"
+      ],
+      "settings": {
+        "gallery_layout": "thumbs_bottom",
+        "image_ratio": "tall",
+        "media_width": 50,
+        "content_width": 1200,
+        "enable_zoom": true,
+        "sticky_info": true,
+        "enable_sticky_bar": true,
+        "update_url": true,
+        "title_font": "condensed",
+        "add_to_cart_text": "Add to bag",
+        "sold_out_text": "",
+        "unavailable_text": "",
+        "background_color": "#f4f1eb",
+        "text_color": "#111111",
+        "accent_color": "#111111",
+        "sale_color": "#c8302b",
+        "padding_top": 32,
+        "padding_bottom": 48
+      }
+    },
+    "related": {
+      "type": "related-products",
+      "settings": {
+        "heading": "You may also like",
+        "products_to_show": 4,
+        "columns_desktop": 4,
+        "image_ratio": "portrait",
+        "show_secondary_image": true,
+        "show_vendor": false,
+        "show_rating": false
+      }
+    }
+  },
+  "order": ["main", "related"]
+}
